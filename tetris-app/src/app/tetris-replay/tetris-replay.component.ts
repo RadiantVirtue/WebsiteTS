@@ -4,7 +4,6 @@ import {
   ChangeDetectorRef,
   Component,
   DestroyRef,
-  ElementRef,
   NgZone,
   OnDestroy,
   ViewChild,
@@ -14,6 +13,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
+import { ElementRef } from '@angular/core';
+import { ScrollRevealDirective } from '../shared/scroll-reveal.directive';
+import { TetrisCanvasRenderer } from './tetris-canvas.renderer';
+import { ANIM, UI, CANVAS } from './replay.constants';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -59,20 +62,19 @@ interface ReplayData {
 @Component({
   selector: 'app-tetris-replay',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, ScrollRevealDirective],
   templateUrl: './tetris-replay.component.html',
   styleUrls: ['./tetris-replay.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
   @ViewChild('boardCanvas') boardCanvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild(ScrollRevealDirective) private revealDir!: ScrollRevealDirective;
 
   // ── Layout ─────────────────────────────────────────────────────────────────
-  readonly CELL    = 28;
-  readonly COLS    = 10;
-  readonly ROWS    = 20;
-  readonly BOARD_W = 10 * 28;
-  readonly BOARD_H = 20 * 28;
+  readonly CELL = 28;
+  readonly COLS = 10;
+  readonly ROWS = 20;
 
   // ── Piece colours (matte Material Design palette) ─────────────────────────
   readonly PIECE_COLORS: Record<number, string> = {
@@ -99,11 +101,11 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
   ];
 
   // ── Controls ───────────────────────────────────────────────────────────────
-  selectedGame = 5;
-  isPlaying    = false;
-  speed        = 5;
-  showGhosts   = true;
-  loading      = false;
+  selectedGame   = 5;
+  isPlaying      = false;
+  speed          = 5;
+  showGhosts     = true;
+  loading        = false;
   runInfoVisible = false;
 
   // ── Replay state ───────────────────────────────────────────────────────────
@@ -114,17 +116,16 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
   // ── Stats ──────────────────────────────────────────────────────────────────
   totalFrames = 0;
 
-  // ── Timing ────────────────────────────────────────────────────────────────
-  private rafId        = 0;
-  private lastTs       = 0;
-  private phaseElapsed = 0;
-  private staggerRafId = 0;
+  // ── Animation state ────────────────────────────────────────────────────────
+  private anim = { rafId: 0, lastTs: 0, phaseElapsed: 0, staggerRafId: 0 };
 
   // ── Visibility ────────────────────────────────────────────────────────────
   private wasPlayingBeforeHide = false;
   private visibilityHandler!: () => void;
 
-  private readonly el = inject(ElementRef);
+  // ── Canvas renderer ───────────────────────────────────────────────────────
+  private renderer!: TetrisCanvasRenderer;
+
   private readonly destroyRef = inject(DestroyRef);
 
   constructor(
@@ -134,11 +135,15 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
   ) {}
 
   ngAfterViewInit(): void {
-    const bc = this.boardCanvasRef.nativeElement;
-    bc.width  = this.BOARD_W;
-    bc.height = this.BOARD_H;
+    const canvas  = this.boardCanvasRef.nativeElement;
+    canvas.width  = this.COLS * this.CELL;
+    canvas.height = this.ROWS * this.CELL;
+    this.renderer = new TetrisCanvasRenderer(
+      canvas.getContext('2d')!,
+      this.CELL, this.ROWS, this.COLS,
+      this.PIECE_COLORS, this.PIECE_IDS,
+    );
     this.loadGame();
-    this.initScrollReveal();
     this.initVisibility();
   }
 
@@ -155,45 +160,30 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
     document.addEventListener('visibilitychange', this.visibilityHandler);
   }
 
-  private initScrollReveal(): void {
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.08 });
-
-    this.el.nativeElement
-      .querySelectorAll('.reveal')
-      .forEach((el: Element) => observer.observe(el));
-  }
-
   ngOnDestroy(): void {
-    cancelAnimationFrame(this.rafId);
-    cancelAnimationFrame(this.staggerRafId);
+    cancelAnimationFrame(this.anim.rafId);
+    cancelAnimationFrame(this.anim.staggerRafId);
     document.removeEventListener('visibilitychange', this.visibilityHandler);
   }
 
   // ── Timing helpers ─────────────────────────────────────────────────────────
   private get frameDuration(): number {
-    return 200 + (10 - this.speed) * 200;
+    return ANIM.SPEED_BASE_MS + (10 - this.speed) * ANIM.SPEED_FACTOR_MS;
   }
-  private get candidateDuration(): number { return this.frameDuration * 0.65; }
-  private get placedDuration():    number { return this.frameDuration * 0.35; }
+  private get candidateDuration(): number { return this.frameDuration * ANIM.CANDIDATE_PHASE_FRAC; }
+  private get placedDuration():    number { return this.frameDuration * ANIM.PLACED_PHASE_FRAC; }
 
   // ── Controls ───────────────────────────────────────────────────────────────
 
   loadGame(): void {
-    cancelAnimationFrame(this.rafId);
+    cancelAnimationFrame(this.anim.rafId);
     this.isPlaying = false;
     this.loading   = true;
     if (this.replay) {
       // Fade out existing stats, then load
       this.runInfoVisible = false;
       this.cdr.markForCheck();
-      setTimeout(() => this.doLoad(), 650);
+      setTimeout(() => this.doLoad(), UI.LOAD_FADE_DELAY_MS);
     } else {
       this.doLoad();
     }
@@ -207,22 +197,20 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
       next: data => {
-        this.replay          = data;
-        this.currentFrameIdx = 0;
-        this.phase           = 'candidates';
-        this.phaseElapsed    = 0;
-        this.loading         = false;
-        this.totalFrames = data.frames.length;
+        this.replay              = data;
+        this.currentFrameIdx     = 0;
+        this.phase               = 'candidates';
+        this.anim.phaseElapsed   = 0;
+        this.loading             = false;
+        this.totalFrames         = data.frames.length;
         // Draw the board without ghosts so animateCandidates() sweeps them in
-        const canvas = this.boardCanvasRef.nativeElement;
-        const ctx    = canvas.getContext('2d')!;
-        this.drawBoard(ctx, data.frames[0].board_before);
-            // Fade in new stats; also re-observe any *ngIf reveal elements now in DOM
+        this.renderer.drawBoard(data.frames[0].board_before);
+        // Fade in new stats; also re-observe any @if reveal elements now in DOM
         this.cdr.markForCheck();
         setTimeout(() => {
           this.runInfoVisible = true;
           this.cdr.markForCheck();
-          this.initScrollReveal();
+          this.revealDir.observeAll();
           this.animateCandidates();
           this.startPlay();
         });
@@ -239,43 +227,39 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
     this.isPlaying ? this.pause() : this.startPlay();
   }
 
-  onBoardClick(): void {
-    this.togglePlay();
-  }
+  onBoardClick(): void { this.togglePlay(); }
 
-  onGhostToggle(): void {
-    this.renderFrame();
-  }
+  onGhostToggle(): void { this.renderFrame(); }
 
   // ── Internal ───────────────────────────────────────────────────────────────
 
   private startPlay(): void {
-    this.isPlaying = true;
-    this.lastTs    = 0;
+    this.isPlaying   = true;
+    this.anim.lastTs = 0;
     this.cdr.markForCheck();
     this.ngZone.runOutsideAngular(() => {
-      this.rafId = requestAnimationFrame(t => this.tick(t));
+      this.anim.rafId = requestAnimationFrame(t => this.tick(t));
     });
   }
 
   private pause(): void {
-    cancelAnimationFrame(this.rafId);
+    cancelAnimationFrame(this.anim.rafId);
     this.isPlaying = false;
     this.cdr.markForCheck();
   }
 
   private tick(ts: number): void {
     if (!this.isPlaying || !this.replay) return;
-    if (this.lastTs === 0) this.lastTs = ts;
+    if (this.anim.lastTs === 0) this.anim.lastTs = ts;
 
-    const dt = ts - this.lastTs;
-    this.lastTs = ts;
-    this.phaseElapsed += dt;
+    const dt = ts - this.anim.lastTs;
+    this.anim.lastTs = ts;
+    this.anim.phaseElapsed += dt;
 
     const threshold = this.phase === 'candidates' ? this.candidateDuration : this.placedDuration;
 
-    if (this.phaseElapsed >= threshold) {
-      this.phaseElapsed -= threshold;
+    if (this.anim.phaseElapsed >= threshold) {
+      this.anim.phaseElapsed -= threshold;
 
       if (this.phase === 'candidates') {
         this.phase = 'placed';
@@ -296,13 +280,12 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
       }
     }
 
-    this.rafId = requestAnimationFrame(t => this.tick(t));
+    this.anim.rafId = requestAnimationFrame(t => this.tick(t));
   }
-
 
   /** Dispatches to the appropriate staggered animation for the current phase. */
   private animateTransition(): void {
-    cancelAnimationFrame(this.staggerRafId);
+    cancelAnimationFrame(this.anim.staggerRafId);
     if (this.phase === 'placed') {
       this.animatePlaced();
     } else {
@@ -312,17 +295,14 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
 
   /** Placed phase: cleared rows fade out while the stack above drifts down. */
   private animatePlaced(): void {
-    if (!this.replay || !this.boardCanvasRef) return;
+    if (!this.replay) return;
     const frame = this.replay.frames[this.currentFrameIdx];
 
-    if (frame.lines_cleared_step === 0) {
-      this.renderFrame();
-      return;
-    }
+    if (frame.lines_cleared_step === 0) { this.renderFrame(); return; }
 
     // Build intermediate board: board_before + chosen piece placed (before clearing)
-    const pieceId       = this.PIECE_IDS[frame.piece];
-    const chosen        = frame.candidates[frame.chosen_idx];
+    const pieceId        = this.PIECE_IDS[frame.piece];
+    const chosen         = frame.candidates[frame.chosen_idx];
     const boardWithPiece = frame.board_before.map(row => [...row]);
     for (const [r, c] of chosen.cells) boardWithPiece[r][c] = pieceId;
 
@@ -332,8 +312,6 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
     }
     if (clearedRows.length === 0) { this.renderFrame(); return; }
 
-    const canvas   = this.boardCanvasRef.nativeElement;
-    const ctx      = canvas.getContext('2d')!;
     const C        = this.CELL;
     const duration = this.placedDuration;
     const start    = performance.now();
@@ -342,9 +320,8 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
       const t    = Math.min((now - start) / duration, 1);
       const ease = 1 - Math.pow(1 - t, 2); // ease-out quad
 
-      ctx.fillStyle = '#0d0d0d';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      this.drawGrid(ctx);
+      this.renderer.clearBoard();
+      this.renderer.drawGrid();
 
       // Non-cleared rows drift down into their final positions
       for (let r = 0; r < this.ROWS; r++) {
@@ -354,7 +331,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
         for (let c = 0; c < this.COLS; c++) {
           const val = boardWithPiece[r][c];
           if (!val) continue;
-          this.drawBlock(ctx, c * C, y, C, this.PIECE_COLORS[val] ?? '#888', 1);
+          this.renderer.drawBlock(c * C, y, C, this.PIECE_COLORS[val] ?? CANVAS.FALLBACK_COLOR, 1);
         }
       }
 
@@ -365,36 +342,33 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
           for (let c = 0; c < this.COLS; c++) {
             const val = boardWithPiece[r][c];
             if (!val) continue;
-            this.drawBlock(ctx, c * C, r * C, C, this.PIECE_COLORS[val] ?? '#888', fadeAlpha);
+            this.renderer.drawBlock(c * C, r * C, C, this.PIECE_COLORS[val] ?? CANVAS.FALLBACK_COLOR, fadeAlpha);
           }
         }
       }
 
-  
       if (t >= 1) return;
-      this.staggerRafId = requestAnimationFrame(tick);
+      this.anim.staggerRafId = requestAnimationFrame(tick);
     };
-    this.staggerRafId = requestAnimationFrame(tick);
+    this.anim.staggerRafId = requestAnimationFrame(tick);
   }
 
   /**
    * Candidates phase — two sub-phases:
-   *   1. Sweep all ghost candidates in left→right over ~65% of candidateDuration
-   *   2. Fade out non-chosen candidates over remaining ~35%, leaving only the chosen
+   *   1. Sweep all ghost candidates in left→right over SWEEP_IN_FRAC of candidateDuration
+   *   2. Fade out non-chosen candidates over FADE_OUT_FRAC, leaving only the chosen
    */
   private animateCandidates(): void {
-    if (!this.replay || !this.boardCanvasRef) return;
-    const frame   = this.replay.frames[this.currentFrameIdx];
-    const canvas  = this.boardCanvasRef.nativeElement;
-    const ctx     = canvas.getContext('2d')!;
-    const C       = this.CELL;
+    if (!this.replay) return;
+    const frame = this.replay.frames[this.currentFrameIdx];
+    const C     = this.CELL;
 
-    this.drawBoard(ctx, frame.board_before);
+    this.renderer.drawBoard(frame.board_before);
 
     if (!this.showGhosts) return;
 
     const pieceId   = this.PIECE_IDS[frame.piece];
-    const baseColor = this.PIECE_COLORS[pieceId] ?? '#888';
+    const baseColor = this.PIECE_COLORS[pieceId] ?? CANVAS.FALLBACK_COLOR;
     const chosen    = frame.candidates[frame.chosen_idx];
 
     // Build per-column cell lists: non-chosen (deduped) + chosen
@@ -416,144 +390,58 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
     }
 
     const totalDuration = this.candidateDuration;
-    const sweepFrac     = 0.65; // first 65% = sweep in
-    const fadeFrac      = 0.35; // last 35%  = fade out non-chosen
     const start         = performance.now();
 
     const tick = (now: number) => {
-      const elapsed = now - start;
-      const tTotal  = Math.min(elapsed / totalDuration, 1);
+      const tTotal = Math.min((now - start) / totalDuration, 1);
 
-      this.drawBoard(ctx, frame.board_before);
-  
-      if (tTotal <= sweepFrac) {
-        // ── Phase 1: sweep in ────────────────────────────────────────────
-        const tSweep      = tTotal / sweepFrac;
+      this.renderer.drawBoard(frame.board_before);
+
+      if (tTotal <= ANIM.SWEEP_IN_FRAC) {
+        // Phase 1: sweep in left→right
+        const tSweep      = tTotal / ANIM.SWEEP_IN_FRAC;
         const visibleCols = Math.floor(tSweep * this.COLS);
-
         for (let c = 0; c < visibleCols; c++) {
           for (const { r } of byCol[c]) {
-            this.drawBlock(ctx, c * C, r * C, C, baseColor, 0.20);
+            this.renderer.drawBlock(c * C, r * C, C, baseColor, ANIM.GHOST_BASE_ALPHA);
           }
         }
       } else {
-        // ── Phase 2: fade out non-chosen, fade in chosen ──────────────────
-        const tFade           = (tTotal - sweepFrac) / fadeFrac;
-        const nonAlpha        = (1 - tFade) * 0.20;    // 0.20 → 0
-        const chosenFillAlpha = 0.20 + tFade * 0.65;   // 0.20 → 0.85
+        // Phase 2: fade out non-chosen, fade in chosen
+        const tFade           = (tTotal - ANIM.SWEEP_IN_FRAC) / ANIM.FADE_OUT_FRAC;
+        const nonAlpha        = (1 - tFade) * ANIM.GHOST_BASE_ALPHA;
+        const chosenFillAlpha = ANIM.GHOST_CHOSEN_INIT_ALPHA + tFade * ANIM.GHOST_CHOSEN_DELTA_ALPHA;
 
-        // Non-chosen: fade out
         if (nonAlpha > 0) {
           for (let c = 0; c < this.COLS; c++) {
             for (const { r, isChosen } of byCol[c]) {
               if (!isChosen) {
-                this.drawBlock(ctx, c * C, r * C, C, baseColor, nonAlpha);
+                this.renderer.drawBlock(c * C, r * C, C, baseColor, nonAlpha);
               }
             }
           }
         }
 
-        // Chosen: fade in
         for (const [r, c] of chosen.cells) {
-          this.drawBlock(ctx, c * C, r * C, C, baseColor, chosenFillAlpha);
+          this.renderer.drawBlock(c * C, r * C, C, baseColor, chosenFillAlpha);
         }
       }
 
-      if (tTotal < 1) this.staggerRafId = requestAnimationFrame(tick);
+      if (tTotal < 1) this.anim.staggerRafId = requestAnimationFrame(tick);
     };
-    this.staggerRafId = requestAnimationFrame(tick);
+    this.anim.staggerRafId = requestAnimationFrame(tick);
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
 
   renderFrame(): void {
-    if (!this.replay || !this.boardCanvasRef) return;
-    const frame  = this.replay.frames[this.currentFrameIdx];
-    const canvas = this.boardCanvasRef.nativeElement;
-    const ctx    = canvas.getContext('2d')!;
-
+    if (!this.replay) return;
+    const frame = this.replay.frames[this.currentFrameIdx];
     const board = this.phase === 'placed' ? frame.board_after : frame.board_before;
-    this.drawBoard(ctx, board);
+    this.renderer.drawBoard(board);
 
     if (this.showGhosts && this.phase === 'candidates') {
-      this.drawGhosts(ctx, frame);
+      this.renderer.drawGhosts(frame);
     }
-  }
-
-  private drawBoard(ctx: CanvasRenderingContext2D, board: number[][]): void {
-    const C = this.CELL;
-    ctx.fillStyle = '#0d0d0d';
-    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    this.drawGrid(ctx);
-
-    for (let r = 0; r < this.ROWS; r++) {
-      for (let c = 0; c < this.COLS; c++) {
-        const val = board[r][c];
-        if (!val) continue;
-        this.drawBlock(ctx, c * C, r * C, C, this.PIECE_COLORS[val] ?? '#888', 1);
-      }
-    }
-  }
-
-  /**
-   * Merges all candidate cells into one unified ghost in the current piece's
-   * colour. The chosen placement is drawn on top at higher opacity.
-   */
-  private drawGhosts(ctx: CanvasRenderingContext2D, frame: Frame): void {
-    const C         = this.CELL;
-    const pieceId   = this.PIECE_IDS[frame.piece];
-    const baseColor = this.PIECE_COLORS[pieceId] ?? '#888';
-    const chosen    = frame.candidates[frame.chosen_idx];
-
-    // Collect all non-chosen cells (deduplicated)
-    const seen = Array.from({ length: this.ROWS }, () => new Uint8Array(this.COLS));
-    const allCells: [number, number][] = [];
-    for (let i = 0; i < frame.candidates.length; i++) {
-      if (i === frame.chosen_idx) continue;
-      for (const [r, c] of frame.candidates[i].cells) {
-        if (!seen[r][c]) { seen[r][c] = 1; allCells.push([r, c]); }
-      }
-    }
-
-    // Draw merged ghost (low opacity)
-    for (const [r, c] of allCells) {
-      this.drawBlock(ctx, c * C, r * C, C, baseColor, 0.20);
-    }
-
-    // Draw chosen placement on top (higher opacity)
-    for (const [r, c] of chosen.cells) {
-      this.drawBlock(ctx, c * C, r * C, C, baseColor, 0.45);
-    }
-  }
-
-  /** Draw subtle grid lines as a guide. Call after clearing the background. */
-  private drawGrid(ctx: CanvasRenderingContext2D): void {
-    const C = this.CELL;
-    ctx.strokeStyle = '#333333';
-    ctx.lineWidth   = 0.5;
-    for (let r = 0; r <= this.ROWS; r++) {
-      ctx.beginPath(); ctx.moveTo(0, r * C); ctx.lineTo(ctx.canvas.width, r * C); ctx.stroke();
-    }
-    for (let c = 0; c <= this.COLS; c++) {
-      ctx.beginPath(); ctx.moveTo(c * C, 0); ctx.lineTo(c * C, ctx.canvas.height); ctx.stroke();
-    }
-  }
-
-  /** Draw a single matte block at grid position (px, py). */
-  private drawBlock(
-    ctx: CanvasRenderingContext2D,
-    px: number, py: number, size: number,
-    color: string, fillAlpha: number
-  ): void {
-    ctx.fillStyle = this.withAlpha(color, fillAlpha);
-    ctx.fillRect(px + 1, py + 1, size - 2, size - 2);
-  }
-
-  /** Parse a CSS hex/rgb colour and return it with the given alpha. */
-  private withAlpha(hex: string, alpha: number): string {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r},${g},${b},${alpha})`;
   }
 }

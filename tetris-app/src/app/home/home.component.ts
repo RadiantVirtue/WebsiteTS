@@ -1,10 +1,12 @@
 import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, ViewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ScrollRevealDirective } from '../shared/scroll-reveal.directive';
+import { UI } from '../tetris-replay/replay.constants';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, ScrollRevealDirective],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css',
 })
@@ -47,7 +49,7 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     navigator.clipboard.writeText(text).then(() => {
       if (this.toastTimer !== null) clearTimeout(this.toastTimer);
       this.toastMessage = `${label} copied`;
-      this.toastTimer = window.setTimeout(() => { this.toastMessage = ''; }, 2000);
+      this.toastTimer = window.setTimeout(() => { this.toastMessage = ''; }, UI.TOAST_DURATION_MS);
     });
   }
 }

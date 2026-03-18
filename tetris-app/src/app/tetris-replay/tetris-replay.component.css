@@ -295,8 +295,17 @@ canvas { display: block; }
   transform: translateY(0);
 }
 
-.case-card:nth-child(2) { transition-delay: 80ms; }
-.case-card:nth-child(3) { transition-delay: 160ms; }
+/* Header stagger */
+.case-title.reveal  { transition-delay: 80ms; }
+.case-sub.reveal    { transition-delay: 160ms; }
+
+/* Viewer stagger */
+.controls-strip.reveal { transition-delay: 100ms; }
+.viewer-hint.reveal    { transition-delay: 180ms; }
+
+/* Case card stagger (individual reveals) */
+.case-card.reveal:nth-child(2) { transition-delay: 100ms; }
+.case-card.reveal:nth-child(3) { transition-delay: 200ms; }
 
 /* ── Run info ────────────────────────────────────────────────────────────── */
 .run-info {
