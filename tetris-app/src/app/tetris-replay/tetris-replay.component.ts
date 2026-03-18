@@ -74,15 +74,15 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
   readonly BOARD_W = 10 * 28;
   readonly BOARD_H = 20 * 28;
 
-  // ── Piece colours (NES palette) ────────────────────────────────────────────
+  // ── Piece colours (matte Material Design palette) ─────────────────────────
   readonly PIECE_COLORS: Record<number, string> = {
-    1: '#00d8d8', // I – cyan
-    2: '#c8c800', // O – yellow
-    3: '#9000d8', // T – purple
-    4: '#00a800', // S – green
-    5: '#c80000', // Z – red
-    6: '#2828c8', // J – blue
-    7: '#d87800', // L – orange
+    1: '#455A64', // I – slate blue-grey
+    2: '#FFA000', // O – deep amber
+    3: '#7B1FA2', // T – muted plum
+    4: '#388E3C', // S – forest green
+    5: '#D32F2F', // Z – brick red
+    6: '#1565C0', // J – deep blue
+    7: '#E65100', // L – dark orange
   };
 
   private readonly PIECE_IDS: Record<string, number> = {
@@ -342,8 +342,9 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
       const t    = Math.min((now - start) / duration, 1);
       const ease = 1 - Math.pow(1 - t, 2); // ease-out quad
 
-      ctx.fillStyle = '#1a1a1a';
+      ctx.fillStyle = '#0d0d0d';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      this.drawGrid(ctx);
 
       // Non-cleared rows drift down into their final positions
       for (let r = 0; r < this.ROWS; r++) {
@@ -353,10 +354,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
         for (let c = 0; c < this.COLS; c++) {
           const val = boardWithPiece[r][c];
           if (!val) continue;
-          ctx.fillStyle = this.PIECE_COLORS[val] ?? '#888';
-          ctx.fillRect(c * C + 1, y + 1, C - 2, C - 2);
-          ctx.fillStyle = 'rgba(255,255,255,0.18)';
-          ctx.fillRect(c * C + 2, y + 2, C - 4, 4);
+          this.drawBlock(ctx, c * C, y, C, this.PIECE_COLORS[val] ?? '#888', 1);
         }
       }
 
@@ -367,8 +365,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
           for (let c = 0; c < this.COLS; c++) {
             const val = boardWithPiece[r][c];
             if (!val) continue;
-            ctx.fillStyle = this.withAlpha(this.PIECE_COLORS[val] ?? '#888', fadeAlpha);
-            ctx.fillRect(c * C + 1, r * C + 1, C - 2, C - 2);
+            this.drawBlock(ctx, c * C, r * C, C, this.PIECE_COLORS[val] ?? '#888', fadeAlpha);
           }
         }
       }
@@ -429,10 +426,6 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
 
       this.drawBoard(ctx, frame.board_before);
   
-      // Uniform ghost style — no chosen highlight
-      ctx.strokeStyle = this.withAlpha(baseColor, 0.45);
-      ctx.lineWidth   = 1;
-
       if (tTotal <= sweepFrac) {
         // ── Phase 1: sweep in ────────────────────────────────────────────
         const tSweep      = tTotal / sweepFrac;
@@ -440,9 +433,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
 
         for (let c = 0; c < visibleCols; c++) {
           for (const { r } of byCol[c]) {
-            ctx.fillStyle = this.withAlpha(baseColor, 0.20);
-            ctx.fillRect(c * C + 1, r * C + 1, C - 2, C - 2);
-            ctx.strokeRect(c * C + 1.5, r * C + 1.5, C - 3, C - 3);
+            this.drawBlock(ctx, c * C, r * C, C, baseColor, 0.20);
           }
         }
       } else {
@@ -453,23 +444,18 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
 
         // Non-chosen: fade out
         if (nonAlpha > 0) {
-          ctx.fillStyle   = this.withAlpha(baseColor, nonAlpha);
-          ctx.strokeStyle = this.withAlpha(baseColor, (1 - tFade) * 0.45);
-          ctx.lineWidth   = 1;
           for (let c = 0; c < this.COLS; c++) {
             for (const { r, isChosen } of byCol[c]) {
               if (!isChosen) {
-                ctx.fillRect(c * C + 1, r * C + 1, C - 2, C - 2);
-                ctx.strokeRect(c * C + 1.5, r * C + 1.5, C - 3, C - 3);
+                this.drawBlock(ctx, c * C, r * C, C, baseColor, nonAlpha);
               }
             }
           }
         }
 
-        // Chosen: fade in to opaque
-        ctx.fillStyle = this.withAlpha(baseColor, chosenFillAlpha);
+        // Chosen: fade in
         for (const [r, c] of chosen.cells) {
-          ctx.fillRect(c * C + 1, r * C + 1, C - 2, C - 2);
+          this.drawBlock(ctx, c * C, r * C, C, baseColor, chosenFillAlpha);
         }
       }
 
@@ -496,17 +482,15 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
 
   private drawBoard(ctx: CanvasRenderingContext2D, board: number[][]): void {
     const C = this.CELL;
-    ctx.fillStyle = '#1a1a1a';
+    ctx.fillStyle = '#0d0d0d';
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    this.drawGrid(ctx);
 
     for (let r = 0; r < this.ROWS; r++) {
       for (let c = 0; c < this.COLS; c++) {
         const val = board[r][c];
         if (!val) continue;
-        ctx.fillStyle = this.PIECE_COLORS[val] ?? '#888';
-        ctx.fillRect(c * C + 1, r * C + 1, C - 2, C - 2);
-        ctx.fillStyle = 'rgba(255,255,255,0.18)';
-        ctx.fillRect(c * C + 2, r * C + 2, C - 4, 4);
+        this.drawBlock(ctx, c * C, r * C, C, this.PIECE_COLORS[val] ?? '#888', 1);
       }
     }
   }
@@ -532,22 +516,37 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
     }
 
     // Draw merged ghost (low opacity)
-    ctx.fillStyle   = this.withAlpha(baseColor, 0.20);
-    ctx.strokeStyle = this.withAlpha(baseColor, 0.45);
-    ctx.lineWidth   = 1;
     for (const [r, c] of allCells) {
-      ctx.fillRect(c * C + 1, r * C + 1, C - 2, C - 2);
-      ctx.strokeRect(c * C + 1.5, r * C + 1.5, C - 3, C - 3);
+      this.drawBlock(ctx, c * C, r * C, C, baseColor, 0.20);
     }
 
-    // Draw chosen placement on top (higher opacity, white stroke)
-    ctx.fillStyle   = this.withAlpha(baseColor, 0.45);
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-    ctx.lineWidth   = 2;
+    // Draw chosen placement on top (higher opacity)
     for (const [r, c] of chosen.cells) {
-      ctx.fillRect(c * C + 1, r * C + 1, C - 2, C - 2);
-      ctx.strokeRect(c * C + 1.5, r * C + 1.5, C - 3, C - 3);
+      this.drawBlock(ctx, c * C, r * C, C, baseColor, 0.45);
     }
+  }
+
+  /** Draw subtle grid lines as a guide. Call after clearing the background. */
+  private drawGrid(ctx: CanvasRenderingContext2D): void {
+    const C = this.CELL;
+    ctx.strokeStyle = '#333333';
+    ctx.lineWidth   = 0.5;
+    for (let r = 0; r <= this.ROWS; r++) {
+      ctx.beginPath(); ctx.moveTo(0, r * C); ctx.lineTo(ctx.canvas.width, r * C); ctx.stroke();
+    }
+    for (let c = 0; c <= this.COLS; c++) {
+      ctx.beginPath(); ctx.moveTo(c * C, 0); ctx.lineTo(c * C, ctx.canvas.height); ctx.stroke();
+    }
+  }
+
+  /** Draw a single matte block at grid position (px, py). */
+  private drawBlock(
+    ctx: CanvasRenderingContext2D,
+    px: number, py: number, size: number,
+    color: string, fillAlpha: number
+  ): void {
+    ctx.fillStyle = this.withAlpha(color, fillAlpha);
+    ctx.fillRect(px + 1, py + 1, size - 2, size - 2);
   }
 
   /** Parse a CSS hex/rgb colour and return it with the given alpha. */
