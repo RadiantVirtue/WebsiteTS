@@ -310,6 +310,12 @@ canvas { display: block; }
   justify-content: center;
   gap: 48px;
   padding: 48px 32px 64px;
+  opacity: 0;
+  transition: opacity 0.65s ease;
+}
+
+.run-info.run-info-visible {
+  opacity: 1;
 }
 
 .run-info-item { text-align: center; }

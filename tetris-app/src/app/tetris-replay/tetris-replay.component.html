@@ -59,7 +59,7 @@
   </div>
 
   <!-- ══ Run info ═══════════════════════════════════════════════════ -->
-  <div class="run-info reveal" *ngIf="replay">
+  <div class="run-info" [class.run-info-visible]="runInfoVisible" *ngIf="replay">
     <div class="run-info-item">
       <div class="run-info-big">{{ replay.metadata.total_pieces }}</div>
       <div class="run-info-desc">pieces placed</div>

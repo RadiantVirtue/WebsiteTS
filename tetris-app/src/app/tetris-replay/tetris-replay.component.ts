@@ -103,6 +103,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
   speed        = 5;
   showGhosts   = true;
   loading      = false;
+  runInfoVisible = false;
 
   // ── Replay state ───────────────────────────────────────────────────────────
   replay: ReplayData | null = null;
@@ -186,7 +187,19 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
     cancelAnimationFrame(this.rafId);
     this.isPlaying = false;
     this.loading   = true;
-    this.replay    = null;
+    if (this.replay) {
+      // Fade out existing stats, then load
+      this.runInfoVisible = false;
+      this.cdr.markForCheck();
+      setTimeout(() => this.doLoad(), 650);
+    } else {
+      this.doLoad();
+    }
+  }
+
+  private doLoad(): void {
+    this.replay = null;
+    this.cdr.markForCheck();
 
     this.http.get<ReplayData>(`replays/web_replay_${this.selectedGame}.json`).subscribe({
       next: data => {
@@ -196,11 +209,18 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
         this.phaseElapsed    = 0;
         this.loading         = false;
         this.totalFrames = data.frames.length;
-        this.renderFrame();
-        // Auto-play on load; also re-observe any *ngIf reveal elements now in DOM
+        // Draw the board without ghosts so animateCandidates() sweeps them in
+        const canvas = this.boardCanvasRef.nativeElement;
+        const ctx    = canvas.getContext('2d')!;
+        this.drawBoard(ctx, data.frames[0].board_before);
+        this.drawGrid(ctx);
+        // Fade in new stats; also re-observe any *ngIf reveal elements now in DOM
         this.cdr.markForCheck();
         setTimeout(() => {
+          this.runInfoVisible = true;
+          this.cdr.markForCheck();
           this.initScrollReveal();
+          this.animateCandidates();
           this.startPlay();
         });
       },

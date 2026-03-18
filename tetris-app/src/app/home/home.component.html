@@ -1,8 +1,8 @@
 <nav>
   <a href="/" class="nav-logo">RK</a>
   <ul class="nav-links">
-    <li><a href="#projects">Projects</a></li>
-    <li><a href="https://www.linkedin.com/in/rhian-kansara/" target="_blank" rel="noopener">Contact</a></li>
+    <li><a href="#projects" (click)="scrollTo($event, 'projects')">Projects</a></li>
+    <li><a href="#contact" (click)="scrollTo($event, 'contact')">Contact</a></li>
   </ul>
 </nav>
 
@@ -33,7 +33,7 @@
         <span class="cta-sep">·</span>
         <a href="https://linkedin.com/in/rhian-kansara" target="_blank" rel="noopener">LinkedIn ↗</a>
         <span class="cta-sep">·</span>
-        <a href="/cv.pdf" download>CV ↓</a>
+        <a href="/cv.pdf" download="Rhian Kansara CV">CV ↓</a>
       </div>
     </div>
   </section>
@@ -81,3 +81,30 @@
 
   </div>
 </div>
+
+<!-- Contact slides in below projects -->
+<div class="contact-section" id="contact">
+  <h2>CONTACT</h2>
+  <div class="contact-items">
+
+    <button class="contact-item" (click)="copy('RadiantVirtue', 'Discord username')">
+      <img src="discord-icon.png" alt="Discord" class="contact-icon" />
+      <span class="contact-value">@RadiantVirtue</span>
+      <svg class="copy-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>
+    </button>
+
+    <button class="contact-item" (click)="copy('rhiankansara20@gmail.com', 'Email')">
+      <img src="mail-icon.png" alt="Email" class="contact-icon" />
+      <span class="contact-value">rhiankansara20@gmail.com</span>
+      <svg class="copy-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>
+    </button>
+
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" [class.toast-visible]="!!toastMessage">{{ toastMessage }}</div>
