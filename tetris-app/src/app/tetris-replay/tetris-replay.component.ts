@@ -101,7 +101,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
   ];
 
   // ── Controls ───────────────────────────────────────────────────────────────
-  selectedGame   = 5;
+  selectedGame   = 3;
   isPlaying      = false;
   speed          = 5;
   showGhosts     = true;

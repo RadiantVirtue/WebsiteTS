@@ -446,6 +446,18 @@
       font-weight: 500;
     }
 
+    /* ── Page-load animations ── */
+    @keyframes revealUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .case-type,
+    .case-title  { animation: revealUp 0.6s ease 50ms both; }
+    .case-sub    { animation: revealUp 0.6s ease 300ms both; }
+    .comp-card.left  { animation: revealUp 0.6s ease 550ms both; }
+    .comp-card.right { animation: revealUp 0.6s ease 700ms both; }
+
     /* ── Scroll reveal (parallax) ── */
     .reveal {
       opacity: 0;
@@ -496,7 +508,7 @@
     </header>
 
     <!-- Comparison cards -->
-    <div class="comparison-wrap reveal" id="results">
+    <div class="comparison-wrap" id="results">
       <div class="comparison">
 
         <!-- Left: manual programming -->
@@ -593,21 +605,21 @@
       </div>
     </div>
 
-    <!-- Big stats row (count-up on hover) -->
-    <div class="big-stats reveal" id="bigStats">
-      <div class="stat-item">
+    <!-- Big stats row (count-up on scroll into view) -->
+    <div class="big-stats" id="bigStats">
+      <div class="stat-item reveal" data-reveal-delay="0">
         <div class="stat-big" data-target="92" data-suffix="%">92%</div>
         <div class="stat-desc">session adherence</div>
       </div>
-      <div class="stat-item">
+      <div class="stat-item reveal" data-reveal-delay="100">
         <div class="stat-big" data-target="0" data-suffix="">0</div>
         <div class="stat-desc">injuries</div>
       </div>
-      <div class="stat-item">
+      <div class="stat-item reveal" data-reveal-delay="200">
         <div class="stat-big" data-target="3" data-suffix="mo">3mo</div>
         <div class="stat-desc">experiment duration</div>
       </div>
-      <div class="stat-item">
+      <div class="stat-item reveal" data-reveal-delay="300">
         <div class="stat-big" data-target="20" data-suffix="%">20%</div>
         <div class="stat-desc">efficiency gain</div>
       </div>
@@ -671,23 +683,32 @@
       }, interval);
     }
 
-    // Scroll reveal
+    // Scroll reveal — for everything below the fold
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
-          if (entry.target.id === 'bigStats') {
-            statEls.forEach(el => {
-              el.textContent = '0' + (el.dataset.suffix || '');
-              countUp(el);
-            });
-          }
+          const delay = parseInt(entry.target.dataset.revealDelay || '0');
+          setTimeout(() => entry.target.classList.add('visible'), delay);
           observer.unobserve(entry.target);
         }
       });
     }, { threshold: 0.08 });
 
-    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    document.querySelectorAll('.stat-item.reveal, .breakdown-wrap.reveal, .impl-block.reveal').forEach(el => observer.observe(el));
+
+    // Count-up trigger (watches bigStats container separately)
+    const countupObserver = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        statEls.forEach(el => {
+          el.textContent = '0' + (el.dataset.suffix || '');
+          countUp(el);
+        });
+        countupObserver.disconnect();
+      }
+    }, { threshold: 0.08 });
+
+    const bigStats = document.getElementById('bigStats');
+    if (bigStats) countupObserver.observe(bigStats);
   </script>
 
 </body>
