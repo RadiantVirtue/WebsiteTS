@@ -1,0 +1,127 @@
+<nav>
+  <a routerLink="/" class="nav-logo">RK</a>
+  <ul class="nav-links">
+    <li><a routerLink="/">← back</a></li>
+    <li><a href="#viewer">viewer</a></li>
+    <li><a href="#how-it-works">how it works</a></li>
+    <li><a href="https://github.com/RadiantVirtue" target="_blank" rel="noopener">GitHub ↗</a></li>
+  </ul>
+</nav>
+
+<main>
+
+  <!-- ══ Case header ════════════════════════════════════════════════ -->
+  <header class="case-header">
+    <div class="case-type">CASE STUDY</div>
+    <h1 class="case-title">Tetris DQN Agent</h1>
+    <p class="case-sub">A deep Q-network trained with prioritised experience replay and an after-state representation. Five recorded games, live Q-value visualisation.</p>
+  </header>
+
+  <!-- ══ Board viewer ═══════════════════════════════════════════════ -->
+  <div class="viewer-wrap reveal" id="viewer">
+    <div class="board-wrap" (click)="onBoardClick()" [class.paused]="!isPlaying">
+      <div class="loading-overlay" *ngIf="loading"><span>Loading…</span></div>
+      <div class="pause-overlay" *ngIf="!isPlaying && replay && !loading">
+        <div class="pause-pill">
+          <svg width="12" height="14" viewBox="0 0 12 14" fill="none">
+            <path d="M1 1L11 7L1 13V1Z" fill="currentColor"/>
+          </svg>
+          <span>play</span>
+        </div>
+      </div>
+      <canvas #boardCanvas></canvas>
+    </div>
+
+    <!-- Controls strip -->
+    <div class="controls-strip">
+      <div class="game-pills">
+        <button
+          *ngFor="let g of games"
+          class="game-pill"
+          [class.active]="selectedGame === g.id"
+          [disabled]="loading"
+          (click)="selectedGame = g.id; loadGame()"
+        >{{ g.id }}</button>
+      </div>
+
+      <label class="ctrl-speed">
+        <span class="ctrl-label">SPEED</span>
+        <input type="range" [(ngModel)]="speed" min="1" max="10" class="speed-slider" />
+      </label>
+
+      <label class="ctrl-ghost">
+        <input type="checkbox" [(ngModel)]="showGhosts" (change)="onGhostToggle()" />
+        <span>Ghosts</span>
+      </label>
+    </div>
+
+    <p class="viewer-hint">click board to pause · ghost outline = agent's chosen placement</p>
+  </div>
+
+  <!-- ══ Run info ═══════════════════════════════════════════════════ -->
+  <div class="run-info reveal" *ngIf="replay">
+    <div class="run-info-item">
+      <div class="run-info-big">{{ replay.metadata.total_pieces }}</div>
+      <div class="run-info-desc">pieces placed</div>
+    </div>
+    <div class="run-info-divider"></div>
+    <div class="run-info-item">
+      <div class="run-info-big accent">{{ replay.metadata.total_lines }}</div>
+      <div class="run-info-desc">lines cleared</div>
+    </div>
+  </div>
+
+
+  <!-- ══ How it works ═══════════════════════════════════════════════ -->
+  <section class="impl-section" id="how-it-works">
+    <div class="impl-eyebrow">HOW IT WORKS</div>
+
+    <div class="case-cards reveal">
+
+      <article class="case-card">
+        <div class="card-type blue">REPRESENTATION</div>
+        <h3 class="card-title">After-State Features</h3>
+        <div class="card-body">
+          <p>Rather than feeding the raw board into the network, the agent uses an <strong>after-state formulation</strong>. For every valid placement it simulates the drop and computes a 4-feature summary:</p>
+          <ul>
+            <li><strong>Lines cleared</strong> ÷ 4</li>
+            <li><strong>Holes</strong> ÷ 40</li>
+            <li><strong>Bumpiness</strong> ÷ 40</li>
+            <li><strong>Stack height</strong> ÷ 200</li>
+          </ul>
+          <p>This collapses "state + action → value" into "resulting state → value" - a far simpler learning target.</p>
+        </div>
+      </article>
+
+      <article class="case-card">
+        <div class="card-type green">ARCHITECTURE</div>
+        <h3 class="card-title">Policy Network</h3>
+        <div class="card-body">
+          <p>A small fully-connected feedforward network maps the 4 features to a single scalar Q-value.</p>
+          <div class="arch-diagram">
+            <div class="arch-node input"><span class="arch-dim">4</span><span class="arch-lbl">Input</span></div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-node hidden"><span class="arch-dim">64</span><span class="arch-lbl">FC + ReLU</span></div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-node hidden"><span class="arch-dim">64</span><span class="arch-lbl">FC + ReLU</span></div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-node output"><span class="arch-dim">Q</span><span class="arch-lbl">Output</span></div>
+          </div>
+          <p>At inference the agent enumerates all valid after-states, runs a batched forward pass, and greedily picks the <strong>highest Q-value</strong> placement.</p>
+        </div>
+      </article>
+
+      <article class="case-card">
+        <div class="card-type amber">TRAINING</div>
+        <h3 class="card-title">Prioritised Experience Replay</h3>
+        <div class="card-body">
+          <p>Transitions are stored in a <strong>priority queue</strong> keyed by TD error - the gap between predicted Q and the Bellman target. High-error transitions are sampled more often.</p>
+          <p><strong>Importance-sampling weights</strong> correct the resulting bias, and priorities are refreshed after each update.</p>
+          <p>This is critical in Tetris: line-clearing events are rare, so uniform sampling would almost never encounter them.</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+</main>

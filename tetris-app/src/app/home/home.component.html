@@ -1,0 +1,83 @@
+<nav>
+  <a href="/" class="nav-logo">RK</a>
+  <ul class="nav-links">
+    <li><a href="#projects">Projects</a></li>
+    <li><a href="https://linkedin.com/in/rhian-kansara" target="_blank" rel="noopener">Contact</a></li>
+  </ul>
+</nav>
+
+<!-- Hero: stays pinned while projects scroll over it -->
+<div class="hero-page">
+  <section class="hero">
+    <div class="hero-inner" #heroInner>
+      <h1 class="hero-name">Rhian Kansara</h1>
+      <p class="hero-sub">CS &amp; AI &nbsp;·&nbsp; Bath &nbsp;·&nbsp; London &nbsp;·&nbsp; I like to build things that learn</p>
+
+      <div class="pills">
+        <div class="pill">
+          <span class="pill-label">shipped to</span><span class="pill-value">~500 users</span>
+          <span class="pill-tooltip">Shipped production-ready software used directly in live customer demos and beta testing (<b>~500 users</b>), serving as the company's first external-facing release.</span>
+        </div>
+        <div class="pill">
+          <span class="pill-label">novel</span><span class="pill-value">RL metric</span>
+          <span class="pill-tooltip">Created <b>Moment of Reward Analysis</b> — a metric that measures how off-policy algorithms weigh immediate versus preparatory actions.</span>
+        </div>
+        <div class="pill">
+          <span class="pill-label">predicted</span><span class="pill-value">first class</span>
+          <span class="pill-tooltip">BSc (Hons) Computer Science and Artificial Intelligence, <b>University of Bath</b> — predicted first class honours.</span>
+        </div>
+      </div>
+
+      <div class="cta-links">
+        <a href="https://github.com/RadiantVirtue" target="_blank" rel="noopener">GitHub ↗</a>
+        <span class="cta-sep">·</span>
+        <a href="https://linkedin.com/in/rhian-kansara" target="_blank" rel="noopener">LinkedIn ↗</a>
+        <span class="cta-sep">·</span>
+        <a href="/cv.pdf" download>CV ↓</a>
+      </div>
+    </div>
+  </section>
+
+  <p class="scroll-hint" #scrollHint>↓ PROJECTS ↓</p>
+</div>
+
+<!-- Projects slide over hero -->
+<div class="projects-section" id="projects">
+  <h2>PROJECTS</h2>
+  <div class="projects">
+
+    <div class="card">
+      <div class="card-type blue">LIVE TOOL</div>
+      <div class="card-title">League team analyzer</div>
+      <div class="card-desc">CC scoring, damage profiles, itemization</div>
+      <div class="tags">
+        <span class="tag">Angular</span>
+        <span class="tag">.NET</span>
+        <span class="tag">Riot API</span>
+      </div>
+    </div>
+
+    <div class="card" routerLink="/tetris">
+      <div class="card-type amber">CASE STUDY</div>
+      <div class="card-title">Tetris DQN agent</div>
+      <div class="card-desc">After-state DQN with prioritised replay, 2,147 lines cleared</div>
+      <div class="tags">
+        <span class="tag">DQN</span>
+        <span class="tag">Angular</span>
+        <span class="tag">PyTorch</span>
+      </div>
+    </div>
+
+    <div class="card" onclick="location.href='/rl-workout-bot/'">
+      <div class="card-type green">CASE STUDY</div>
+      <div class="card-title">PPO Workout Agent</div>
+      <div class="card-desc">20% efficiency gain, 3-month self-experiment</div>
+      <div class="tags">
+        <span class="tag">PyTorch</span>
+        <span class="tag">PPO</span>
+        <span class="tag">RL</span>
+      </div>
+    </div>
+
+  </div>
+</div>

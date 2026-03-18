@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <script>if(location.pathname.endsWith('/index.html'))history.replaceState(null,'',location.pathname.slice(0,-'index.html'.length));</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RL Workout Bot - Rhian Kansara</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #1a1a1a;
+      --bg-card:    #212121;
+      --bg-pill:    #2a2a2a;
+      --border:     rgba(255,255,255,0.08);
+      --text-pri:   #e8e8e8;
+      --text-sec:   #888;
+      --text-ter:   #555;
+      --blue:       #6b9fff;
+      --green:      #5cb85c;
+      --amber:      #e6a817;
+      --red:        #d9534f;
+      --radius-md:  8px;
+      --radius-lg:  12px;
+      --nav-height: 57px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-pri);
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 32px;
+      border-bottom: 0.5px solid var(--border);
+      background: var(--bg);
+    }
+
+    .nav-logo {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--text-pri);
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 28px;
+      font-size: 13px;
+      color: var(--text-sec);
+      list-style: none;
+    }
+
+    .nav-links a { color: inherit; text-decoration: none; transition: color 0.15s; }
+    .nav-links a:hover { color: var(--text-pri); }
+
+    /* ── Main ── */
+    main { padding-top: var(--nav-height); }
+
+    /* ── Case header ── */
+    .case-header {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 72px 32px 56px;
+      text-align: center;
+    }
+
+    .case-type {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      color: var(--green);
+      margin-bottom: 16px;
+    }
+
+    .case-title {
+      font-size: 40px;
+      font-weight: 500;
+      letter-spacing: -0.5px;
+      margin-bottom: 14px;
+    }
+
+    .case-sub {
+      font-size: 14px;
+      color: var(--text-sec);
+      line-height: 1.7;
+    }
+
+    /* ── Comparison ── */
+    .comparison-wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 0 32px 12px;
+    }
+
+    .comparison {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .comp-card {
+      background: var(--bg-card);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 36px 36px 28px;
+      transition: border-color 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .c-period {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: var(--text-ter);
+      margin-bottom: 6px;
+    }
+
+    .c-method {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 28px;
+    }
+
+    /* Stat block - fixed height to contain both states */
+    .c-stat-block {
+      position: relative;
+      min-height: 90px;
+      flex: 1;
+    }
+
+    .c-stat-default,
+    .c-stat-reveal {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .c-stat-default { opacity: 1; transform: translateY(0); }
+    .c-stat-reveal  { opacity: 0; transform: translateY(10px); }
+
+    .big-num {
+      font-size: 54px;
+      font-weight: 700;
+      letter-spacing: -2px;
+      line-height: 1;
+      color: var(--text-sec);
+    }
+
+    .big-num.muted { color: var(--text-pri); }
+
+    .stat-sublabel {
+      font-size: 13px;
+      color: var(--text-ter);
+      margin-top: 6px;
+    }
+
+    /* Reveal elements */
+    .expected-num {
+      font-size: 54px;
+      font-weight: 700;
+      letter-spacing: -2px;
+      line-height: 1;
+      color: var(--text-pri);
+    }
+
+    .expected-note {
+      font-size: 12px;
+      color: var(--text-ter);
+      margin-top: 11px;
+    }
+
+    /* Card footer - same row on both cards */
+    .c-footer {
+      margin-top: 20px;
+      min-height: 26px;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .delta-badge {
+      font-size: 12px;
+      color: var(--green);
+      background: rgba(92, 184, 92, 0.1);
+      border: 0.5px solid rgba(92, 184, 92, 0.2);
+      border-radius: 4px;
+      padding: 3px 8px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .matched-badge {
+      font-size: 12px;
+      color: var(--green);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .hover-hint {
+      position: absolute;
+      top: 0; left: 0;
+      font-size: 11px;
+      color: var(--text-ter);
+      letter-spacing: 0.3px;
+      transition: opacity 0.3s ease;
+      line-height: 26px;
+    }
+
+    /* ── Center overlay ── */
+    .comp-overlay {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 5;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+      text-align: center;
+      background: var(--bg);
+      border: 0.5px solid rgba(255,255,255,0.15);
+      border-radius: var(--radius-lg);
+      padding: 20px 28px;
+      white-space: nowrap;
+    }
+
+    .overlay-num {
+      font-size: 52px;
+      font-weight: 700;
+      letter-spacing: -2px;
+      color: var(--green);
+      line-height: 1;
+    }
+
+    .overlay-label {
+      font-size: 12px;
+      color: var(--text-sec);
+      margin-top: 5px;
+      letter-spacing: 0.3px;
+    }
+
+    .c-method { position: relative; }
+
+    .method-default,
+    .method-reveal {
+      transition: opacity 0.3s ease;
+    }
+
+    .method-reveal {
+      opacity: 0;
+      position: absolute;
+      top: 0; left: 0;
+    }
+
+    .comparison:has(.comp-card.right:hover) .method-default { opacity: 0; }
+    .comparison:has(.comp-card.right:hover) .method-reveal  { opacity: 1; }
+
+    /* ── Hover interactions ── */
+    .comparison:has(.comp-card.right:hover) .comp-card.right {
+      border-color: rgba(92, 184, 92, 0.35);
+    }
+
+    .comparison:has(.comp-card.right:hover) .comp-overlay {
+      opacity: 1;
+    }
+
+    .comparison:has(.comp-card.right:hover) .comp-card.left .c-stat-default {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    .comparison:has(.comp-card.right:hover) .comp-card.left .c-stat-reveal {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .comparison:has(.comp-card.right:hover) .delta-badge,
+    .comparison:has(.comp-card.right:hover) .matched-badge {
+      opacity: 1;
+    }
+
+    .comparison:has(.comp-card.right:hover) .hover-hint {
+      opacity: 0;
+    }
+
+    /* ── Context hint below cards ── */
+    .comparison-hint {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 12px 32px 48px;
+      font-size: 11px;
+      color: var(--text-ter);
+      text-align: right;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Breakdown ── */
+    .breakdown-wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 0 32px 64px;
+    }
+
+    .breakdown-toggle {
+      background: none;
+      border: none;
+      color: var(--text-sec);
+      font-size: 13px;
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+      transition: color 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .breakdown-toggle:hover { color: var(--text-pri); }
+
+    .breakdown-toggle .arrow {
+      display: inline-block;
+      transition: transform 0.25s ease;
+    }
+
+    .breakdown-toggle.open .arrow { transform: rotate(180deg); }
+
+    .breakdown-content {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transition: max-height 0.35s ease, opacity 0.3s ease;
+    }
+
+    .breakdown-content.open {
+      max-height: 320px;
+      opacity: 1;
+    }
+
+    .breakdown-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 20px;
+    }
+
+    .breakdown-table th {
+      text-align: left;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--text-ter);
+      padding-bottom: 12px;
+      border-bottom: 0.5px solid var(--border);
+      font-weight: 400;
+    }
+
+    .breakdown-table td {
+      padding: 11px 0;
+      color: var(--text-sec);
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .breakdown-table tr:last-child td { border-bottom: none; }
+    .breakdown-table td:first-child { color: var(--text-pri); font-weight: 500; }
+    .breakdown-table td.gain { color: var(--green); font-weight: 600; }
+
+    /* ── Big stats row ── */
+    .big-stats {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 0 32px 72px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 32px 8px;
+      border-left: 0.5px solid var(--border);
+    }
+
+    .stat-item:last-child { border-right: 0.5px solid var(--border); }
+
+    .stat-big {
+      font-size: 44px;
+      font-weight: 700;
+      letter-spacing: -1.5px;
+      line-height: 1;
+      color: var(--green);
+    }
+
+    .stat-desc {
+      font-size: 11px;
+      color: var(--text-ter);
+      margin-top: 7px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Implementation section ── */
+    .impl-section {
+      max-width: 620px;
+      margin: 0 auto;
+      padding: 0 32px 120px;
+      border-top: 0.5px solid var(--border);
+    }
+
+    .impl-eyebrow {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--text-ter);
+      margin: 48px 0 48px;
+    }
+
+    .impl-block { margin-bottom: 44px; }
+
+    .impl-block-label {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+
+    .impl-block p {
+      font-size: 14px;
+      color: var(--text-sec);
+      line-height: 1.75;
+    }
+
+    .impl-block p + p { margin-top: 12px; }
+
+    .impl-block strong {
+      color: var(--text-pri);
+      font-weight: 500;
+    }
+
+    /* ── Scroll reveal (parallax) ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.65s ease, transform 0.65s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* stagger impl blocks */
+    .impl-block:nth-child(2) { transition-delay: 0ms; }
+    .impl-block:nth-child(3) { transition-delay: 80ms; }
+    .impl-block:nth-child(4) { transition-delay: 160ms; }
+    .impl-block:nth-child(5) { transition-delay: 240ms; }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .comparison { grid-template-columns: 1fr; }
+      .comp-overlay { display: none; }
+      .case-title { font-size: 30px; }
+      .big-stats { grid-template-columns: repeat(2, 1fr); }
+      .big-stats .stat-item:nth-child(2) { border-right: 0.5px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="/" class="nav-logo">RK</a>
+    <ul class="nav-links">
+      <li><a href="/">← back</a></li>
+      <li><a href="#results">results</a></li>
+      <li><a href="#implementation">implementation</a></li>
+      <li><a href="https://github.com/RadiantVirtue/GymBot" target="_blank" rel="noopener">GitHub ↗</a></li>
+    </ul>
+  </nav>
+
+  <main>
+
+    <!-- Header -->
+    <header class="case-header">
+      <div class="case-type">CASE STUDY</div>
+      <h1 class="case-title">RL Workout Bot</h1>
+      <p class="case-sub">Can a reinforcement learning agent make better sequential training decisions than I can? Three months of self-experimentation.</p>
+    </header>
+
+    <!-- Comparison cards -->
+    <div class="comparison-wrap reveal" id="results">
+      <div class="comparison">
+
+        <!-- Left: manual programming -->
+        <div class="comp-card left">
+          <div class="c-period">MONTHS 1–3</div>
+          <div class="c-method">
+            <span class="method-default">Manual Programming</span>
+            <span class="method-reveal">Expected Gains on Bot Policy</span>
+          </div>
+          <div class="c-stat-block">
+            <div class="c-stat-default">
+              <div class="big-num">+50kg</div>
+              <div class="stat-sublabel">total</div>
+            </div>
+            <div class="c-stat-reveal">
+              <div class="expected-num">+60kg</div>
+              <div class="expected-note">expected (diminishing returns model)</div>
+            </div>
+          </div>
+          <div class="c-footer">
+            <div class="delta-badge">projected +10kg vs actual</div>
+          </div>
+        </div>
+
+        <!-- Center efficiency overlay (appears on right-card hover) -->
+        <div class="comp-overlay">
+          <div class="overlay-num">20%</div>
+          <div class="overlay-label">more efficient</div>
+        </div>
+
+        <!-- Right: bot policy -->
+        <div class="comp-card right">
+          <div class="c-period">MONTHS 4–6</div>
+          <div class="c-method">Bot Policy</div>
+          <div class="c-stat-block">
+            <div class="c-stat-default">
+              <div class="big-num muted">+35kg</div>
+              <div class="stat-sublabel">total</div>
+            </div>
+          </div>
+          <div class="c-footer">
+<div class="hover-hint">hover to see context-adjusted comparison</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Context hint -->
+    <div class="comparison-hint">raw numbers don't tell the full story</div>
+
+    <!-- Breakdown -->
+    <div class="breakdown-wrap reveal">
+      <button class="breakdown-toggle" id="breakdownToggle">
+        per-exercise breakdown <span class="arrow">↓</span>
+      </button>
+      <div class="breakdown-content" id="breakdownContent">
+        <table class="breakdown-table">
+          <thead>
+            <tr>
+              <th>Exercise</th>
+              <th>M1–3 start</th>
+              <th>M1–3 end</th>
+              <th class="gain">M1–3 gain</th>
+              <th>M4–6 start</th>
+              <th>M4–6 end</th>
+              <th class="gain">M4–6 gain</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Bench press</td>
+              <td>50kg</td><td>60kg</td>
+              <td class="gain">+10kg</td>
+              <td>60kg</td><td>70kg</td>
+              <td class="gain">+10kg</td>
+            </tr>
+            <tr>
+              <td>Deadlift</td>
+              <td>70kg</td><td>90kg</td>
+              <td class="gain">+20kg</td>
+              <td>90kg</td><td>105kg</td>
+              <td class="gain">+15kg</td>
+            </tr>
+            <tr>
+              <td>Squat</td>
+              <td>60kg</td><td>80kg</td>
+              <td class="gain">+20kg</td>
+              <td>80kg</td><td>90kg</td>
+              <td class="gain">+10kg</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Big stats row (count-up on hover) -->
+    <div class="big-stats reveal" id="bigStats">
+      <div class="stat-item">
+        <div class="stat-big" data-target="92" data-suffix="%">92%</div>
+        <div class="stat-desc">session adherence</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-big" data-target="0" data-suffix="">0</div>
+        <div class="stat-desc">injuries</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-big" data-target="3" data-suffix="mo">3mo</div>
+        <div class="stat-desc">experiment duration</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-big" data-target="20" data-suffix="%">20%</div>
+        <div class="stat-desc">efficiency gain</div>
+      </div>
+    </div>
+
+    <!-- Implementation -->
+    <section class="impl-section" id="implementation">
+      <div class="impl-eyebrow">IMPLEMENTATION</div>
+
+      <div class="impl-block reveal">
+        <div class="impl-block-label">PROBLEM</div>
+        <p>Workout programming is a <strong>sequential decision problem</strong>. Each session's exercise choices affect recovery, which constrains future sessions. Most people use a template or improvise. The question: can an RL agent make better sequential decisions than I can?</p>
+      </div>
+
+      <div class="impl-block reveal">
+        <div class="impl-block-label">STATE REPRESENTATION</div>
+        <p>The musculoskeletal system is modelled as a <strong>bipartite graph</strong> - 15 muscle groups connected to 50 exercises. Each muscle carries a fatigue level that decays between sessions. The agent observes this fatigue state at each decision point and selects the next session's exercises.</p>
+      </div>
+
+      <div class="impl-block reveal">
+        <div class="impl-block-label">REWARD FUNCTION</div>
+        <p>The hardest part: balancing <strong>three competing objectives</strong> - fatigue management (don't overtrain a muscle group), progressive overload (keep lifting heavier), and adherence (don't programme workouts I'll skip). It took several iterations before the reward function stopped fighting itself.</p>
+      </div>
+      <div class="impl-block reveal">
+        <div class="impl-block-label">RESULTS</div>
+        <p>Three months on myself. <strong>92% session adherence. Zero injuries.</strong> Against the preceding three months of manual programming - adjusting for diminishing returns via a fitted quadratic - the bot's policy was approximately <strong>20% more efficient</strong>.</p>
+      </div>
+
+      <div class="impl-block reveal">
+        <a href="https://github.com/RadiantVirtue/GymBot" target="_blank" rel="noopener" style="color: var(--blue); text-decoration: none; font-size: 14px;">See the code ↗</a>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Breakdown toggle
+    const toggle = document.getElementById('breakdownToggle');
+    const content = document.getElementById('breakdownContent');
+
+    toggle.addEventListener('click', () => {
+      const isOpen = content.classList.toggle('open');
+      toggle.classList.toggle('open', isOpen);
+    });
+
+
+    // Count-up (fires once when stats section scrolls into view)
+    const statEls = document.querySelectorAll('.stat-big[data-target]');
+
+    function countUp(el) {
+      const target = parseInt(el.dataset.target);
+      const suffix = el.dataset.suffix || '';
+      if (target === 0) { el.textContent = '0' + suffix; return; }
+      const steps = 28;
+      const interval = 600 / steps;
+      let step = 0;
+      const timer = setInterval(() => {
+        step++;
+        el.textContent = Math.min(Math.round((target / steps) * step), target) + suffix;
+        if (step >= steps) clearInterval(timer);
+      }, interval);
+    }
+
+    // Scroll reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          if (entry.target.id === 'bigStats') {
+            statEls.forEach(el => {
+              el.textContent = '0' + (el.dataset.suffix || '');
+              countUp(el);
+            });
+          }
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,224 @@
+<div class="tetris-viewer">
+
+  <!-- ══ Controls bar ═══════════════════════════════════════════════ -->
+  <div class="controls">
+
+    <select
+      class="game-select"
+      [(ngModel)]="selectedGame"
+      (change)="loadGame()"
+      [disabled]="loading"
+    >
+      <option *ngFor="let g of games" [value]="g.id">{{ g.label }}</option>
+    </select>
+
+    <div class="transport">
+      <button class="btn-icon" (click)="stepBack()"    title="Step back"    [disabled]="!replay">◄</button>
+      <button class="btn-play" (click)="togglePlay()"                        [disabled]="!replay || loading">
+        <span *ngIf="!isPlaying">▶</span>
+        <span *ngIf=" isPlaying">⏸</span>
+      </button>
+      <button class="btn-icon" (click)="stepForward()" title="Step forward" [disabled]="!replay">►</button>
+    </div>
+
+    <label class="speed-label">
+      <span class="control-label">SPEED</span>
+      <input class="speed-slider" type="range" [(ngModel)]="speed" min="1" max="10" />
+    </label>
+
+    <label class="ghost-toggle">
+      <input type="checkbox" [(ngModel)]="showGhosts" (change)="onGhostToggle()" />
+      <span>Q-value ghosts</span>
+    </label>
+
+  </div>
+
+  <!-- ══ Board + side panel ══════════════════════════════════════════ -->
+  <div class="viewer-main">
+
+    <!-- Board canvas -->
+    <div class="board-wrap">
+      <div class="loading-overlay" *ngIf="loading">
+        <span>Loading…</span>
+      </div>
+      <canvas #boardCanvas class="board-canvas"></canvas>
+    </div>
+
+    <!-- Side panel -->
+    <div class="side-panel">
+
+      <!-- Next piece -->
+      <div class="panel-block">
+        <div class="panel-label">NEXT PIECE</div>
+        <canvas #nextCanvas class="next-canvas"></canvas>
+      </div>
+
+      <!-- Live stats -->
+      <div class="panel-block">
+        <div class="panel-label">STATS</div>
+        <div class="stat-grid">
+          <span class="stat-key">PIECE</span>
+          <span class="stat-val piece-badge">{{ currentPiece || '—' }}</span>
+
+          <span class="stat-key">FRAME</span>
+          <span class="stat-val">{{ replay ? (currentFrameIdx + 1) + ' / ' + totalFrames : '—' }}</span>
+
+          <span class="stat-key">LINES</span>
+          <span class="stat-val">{{ replay ? linesCleared : '—' }}</span>
+
+          <span class="stat-key">SCORE</span>
+          <span class="stat-val">{{ replay ? score : '—' }}</span>
+        </div>
+      </div>
+
+      <!-- Game totals (shown once loaded) -->
+      <div class="panel-block" *ngIf="replay">
+        <div class="panel-label">GAME TOTALS</div>
+        <div class="stat-grid">
+          <span class="stat-key">LINES</span>
+          <span class="stat-val accent-green">{{ totalLines }}</span>
+
+          <span class="stat-key">SCORE</span>
+          <span class="stat-val accent-green">{{ finalScore }}</span>
+        </div>
+      </div>
+
+      <!-- Q-value legend -->
+      <div class="panel-block" *ngIf="showGhosts && replay">
+        <div class="panel-label">Q-VALUE SCALE</div>
+        <div class="legend">
+          <span class="leg-low">Low</span>
+          <div class="gradient-bar"></div>
+          <span class="leg-high">High</span>
+        </div>
+        <p class="legend-note">White border = agent's chosen placement</p>
+        <p class="legend-note">Top 5 candidates shown per piece</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ Scrubber ════════════════════════════════════════════════════ -->
+  <div class="scrubber-wrap" *ngIf="replay">
+    <input
+      class="scrubber"
+      type="range"
+      min="0"
+      [max]="totalFrames - 1"
+      [value]="currentFrameIdx"
+      (input)="onScrub($event)"
+    />
+    <div class="scrubber-labels">
+      <span>Piece 1</span>
+      <span>Piece {{ totalFrames }}</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ Case study ══════════════════════════════════════════════════════ -->
+<section class="case-study">
+  <h2 class="section-heading">HOW THE AGENT WORKS</h2>
+
+  <div class="case-cards">
+
+    <!-- Card 1: After-state representation -->
+    <article class="case-card">
+      <div class="card-type blue">REPRESENTATION</div>
+      <h3 class="card-title">After-State Features</h3>
+      <div class="card-body">
+        <p>
+          Rather than feeding the raw board or the current piece into the
+          network, the agent uses an <strong>after-state formulation</strong>.
+          For every valid placement (rotation × column), it simulates the drop
+          and computes a 4-feature summary of the resulting board:
+        </p>
+        <ul>
+          <li><strong>Lines cleared</strong> — normalised ÷ 4</li>
+          <li><strong>Holes</strong> — empty cells with filled cells above, normalised ÷ 40</li>
+          <li><strong>Bumpiness</strong> — sum of |height differences| between adjacent columns, ÷ 40</li>
+          <li><strong>Stack height</strong> — normalised ÷ 200</li>
+        </ul>
+        <p>
+          The network never sees the current piece directly; it sees what the
+          board would look like <em>after</em> each candidate action.
+          This collapses the problem from "given state + action → value" into
+          "given resulting state → value" — a much simpler and more stable
+          learning target.
+        </p>
+      </div>
+    </article>
+
+    <!-- Card 2: Network architecture -->
+    <article class="case-card">
+      <div class="card-type green">ARCHITECTURE</div>
+      <h3 class="card-title">Policy Network</h3>
+      <div class="card-body">
+        <p>
+          The policy network is a small fully-connected feedforward network
+          that maps the 4 board features to a single scalar Q-value.
+        </p>
+
+        <!-- Architecture diagram -->
+        <div class="arch-diagram">
+          <div class="arch-node input">
+            <span class="arch-dim">4</span>
+            <span class="arch-lbl">Input</span>
+          </div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node hidden">
+            <span class="arch-dim">64</span>
+            <span class="arch-lbl">FC + ReLU</span>
+          </div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node hidden">
+            <span class="arch-dim">64</span>
+            <span class="arch-lbl">FC + ReLU</span>
+          </div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node output">
+            <span class="arch-dim">Q</span>
+            <span class="arch-lbl">Output</span>
+          </div>
+        </div>
+
+        <p>
+          At decision time the agent enumerates all valid after-states,
+          passes each through the network in a <strong>batched forward pass</strong>,
+          and greedily selects the placement with the
+          <strong>highest Q-value</strong> — no ε-greedy exploration at
+          inference.
+        </p>
+      </div>
+    </article>
+
+    <!-- Card 3: PER -->
+    <article class="case-card">
+      <div class="card-type amber">TRAINING</div>
+      <h3 class="card-title">Prioritised Experience Replay</h3>
+      <div class="card-body">
+        <p>
+          During training, transitions are stored in a
+          <strong>priority queue</strong> rather than a uniform replay buffer.
+          Each transition receives a priority proportional to its
+          <strong>TD error</strong> — the difference between the network's
+          predicted Q-value and the Bellman target.
+        </p>
+        <p>
+          Transitions with larger errors are sampled more frequently, because
+          those are the ones the network is currently most wrong about. To
+          correct the induced sampling bias,
+          <strong>importance-sampling weights</strong> are applied when
+          computing the gradient update, and priorities are refreshed after
+          each learning step.
+        </p>
+        <p>
+          This makes training significantly more sample-efficient than vanilla
+          DQN — especially in Tetris, where line-clearing events are rare and
+          would otherwise be seen only infrequently with uniform sampling.
+        </p>
+      </div>
+    </article>
+
+  </div>
+</section>
