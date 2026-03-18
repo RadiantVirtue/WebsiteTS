@@ -96,14 +96,9 @@ main { padding-top: var(--nav-height); }
 .board-wrap {
   position: relative;
   cursor: pointer;
-  border: 0.5px solid var(--accent-border);
-  border-radius: 4px;
   line-height: 0;
-  transition: border-color 0.2s;
   user-select: none;
 }
-
-.board-wrap:hover { border-color: rgba(61,255,143,0.30); }
 
 .loading-overlay,
 .pause-overlay {

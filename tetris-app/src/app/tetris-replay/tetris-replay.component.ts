@@ -3,13 +3,14 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  DestroyRef,
   ElementRef,
   NgZone,
   OnDestroy,
   ViewChild,
   inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
@@ -58,7 +59,7 @@ interface ReplayData {
 @Component({
   selector: 'app-tetris-replay',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink],
   templateUrl: './tetris-replay.component.html',
   styleUrls: ['./tetris-replay.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -124,6 +125,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
   private visibilityHandler!: () => void;
 
   private readonly el = inject(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private readonly http: HttpClient,
@@ -201,7 +203,9 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
     this.replay = null;
     this.cdr.markForCheck();
 
-    this.http.get<ReplayData>(`replays/web_replay_${this.selectedGame}.json`).subscribe({
+    this.http.get<ReplayData>(`replays/web_replay_${this.selectedGame}.json`).pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
       next: data => {
         this.replay          = data;
         this.currentFrameIdx = 0;
@@ -213,8 +217,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
         const canvas = this.boardCanvasRef.nativeElement;
         const ctx    = canvas.getContext('2d')!;
         this.drawBoard(ctx, data.frames[0].board_before);
-        this.drawGrid(ctx);
-        // Fade in new stats; also re-observe any *ngIf reveal elements now in DOM
+            // Fade in new stats; also re-observe any *ngIf reveal elements now in DOM
         this.cdr.markForCheck();
         setTimeout(() => {
           this.runInfoVisible = true;
@@ -339,7 +342,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
       const t    = Math.min((now - start) / duration, 1);
       const ease = 1 - Math.pow(1 - t, 2); // ease-out quad
 
-      ctx.fillStyle = '#0a0a0a';
+      ctx.fillStyle = '#1a1a1a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Non-cleared rows drift down into their final positions
@@ -370,8 +373,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
         }
       }
 
-      this.drawGrid(ctx);
-
+  
       if (t >= 1) return;
       this.staggerRafId = requestAnimationFrame(tick);
     };
@@ -391,7 +393,6 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
     const C       = this.CELL;
 
     this.drawBoard(ctx, frame.board_before);
-    this.drawGrid(ctx);
 
     if (!this.showGhosts) return;
 
@@ -427,8 +428,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
       const tTotal  = Math.min(elapsed / totalDuration, 1);
 
       this.drawBoard(ctx, frame.board_before);
-      this.drawGrid(ctx);
-
+  
       // Uniform ghost style — no chosen highlight
       ctx.strokeStyle = this.withAlpha(baseColor, 0.45);
       ctx.lineWidth   = 1;
@@ -488,7 +488,6 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
 
     const board = this.phase === 'placed' ? frame.board_after : frame.board_before;
     this.drawBoard(ctx, board);
-    this.drawGrid(ctx);
 
     if (this.showGhosts && this.phase === 'candidates') {
       this.drawGhosts(ctx, frame);
@@ -497,7 +496,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
 
   private drawBoard(ctx: CanvasRenderingContext2D, board: number[][]): void {
     const C = this.CELL;
-    ctx.fillStyle = '#0a0a0a';
+    ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     for (let r = 0; r < this.ROWS; r++) {
@@ -512,22 +511,6 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private drawGrid(ctx: CanvasRenderingContext2D): void {
-    const C = this.CELL;
-    ctx.strokeStyle = 'rgba(61,255,143,0.06)';
-    ctx.lineWidth   = 0.5;
-    ctx.beginPath();
-    for (let c = 0; c <= this.COLS; c++) {
-      ctx.moveTo(c * C, 0);
-      ctx.lineTo(c * C, this.ROWS * C);
-    }
-    for (let r = 0; r <= this.ROWS; r++) {
-      ctx.moveTo(0, r * C);
-      ctx.lineTo(this.COLS * C, r * C);
-    }
-    ctx.stroke();
-  }
-
   /**
    * Merges all candidate cells into one unified ghost in the current piece's
    * colour. The chosen placement is drawn on top at higher opacity.
@@ -539,11 +522,12 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
     const chosen    = frame.candidates[frame.chosen_idx];
 
     // Collect all non-chosen cells (deduplicated)
-    const allCells = new Set<string>();
+    const seen = Array.from({ length: this.ROWS }, () => new Uint8Array(this.COLS));
+    const allCells: [number, number][] = [];
     for (let i = 0; i < frame.candidates.length; i++) {
       if (i === frame.chosen_idx) continue;
       for (const [r, c] of frame.candidates[i].cells) {
-        allCells.add(`${r},${c}`);
+        if (!seen[r][c]) { seen[r][c] = 1; allCells.push([r, c]); }
       }
     }
 
@@ -551,8 +535,7 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
     ctx.fillStyle   = this.withAlpha(baseColor, 0.20);
     ctx.strokeStyle = this.withAlpha(baseColor, 0.45);
     ctx.lineWidth   = 1;
-    for (const key of allCells) {
-      const [r, c] = key.split(',').map(Number);
+    for (const [r, c] of allCells) {
       ctx.fillRect(c * C + 1, r * C + 1, C - 2, C - 2);
       ctx.strokeRect(c * C + 1.5, r * C + 1.5, C - 3, C - 3);
     }

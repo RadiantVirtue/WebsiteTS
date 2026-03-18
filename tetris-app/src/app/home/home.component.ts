@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, ViewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 @Component({
@@ -8,12 +8,28 @@ import { RouterLink } from '@angular/router';
   templateUrl: './home.component.html',
   styleUrl: './home.component.css',
 })
-export class HomeComponent {
+export class HomeComponent implements AfterViewInit, OnDestroy {
   @ViewChild('heroInner') heroInnerRef!: ElementRef<HTMLElement>;
   @ViewChild('scrollHint') scrollHintRef!: ElementRef<HTMLElement>;
+  @ViewChild('projectsGrid') projectsGridRef!: ElementRef<HTMLElement>;
 
   toastMessage = '';
-  private toastTimer = 0;
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
+  private cardsObserver: IntersectionObserver | null = null;
+
+  ngAfterViewInit(): void {
+    this.cardsObserver = new IntersectionObserver(
+      ([entry]) => {
+        entry.target.classList.toggle('cards-visible', entry.isIntersecting);
+      },
+      { threshold: 0.2 }
+    );
+    this.cardsObserver.observe(this.projectsGridRef.nativeElement);
+  }
+
+  ngOnDestroy(): void {
+    this.cardsObserver?.disconnect();
+  }
 
   @HostListener('window:scroll')
   onScroll(): void {
@@ -29,7 +45,7 @@ export class HomeComponent {
 
   copy(text: string, label: string): void {
     navigator.clipboard.writeText(text).then(() => {
-      clearTimeout(this.toastTimer);
+      if (this.toastTimer !== null) clearTimeout(this.toastTimer);
       this.toastMessage = `${label} copied`;
       this.toastTimer = window.setTimeout(() => { this.toastMessage = ''; }, 2000);
     });

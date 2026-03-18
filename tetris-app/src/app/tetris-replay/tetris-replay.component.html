@@ -20,28 +20,31 @@
   <!-- ══ Board viewer ═══════════════════════════════════════════════ -->
   <div class="viewer-wrap reveal" id="viewer">
     <div class="board-wrap" (click)="onBoardClick()" [class.paused]="!isPlaying">
-      <div class="loading-overlay" *ngIf="loading"><span>Loading…</span></div>
-      <div class="pause-overlay" *ngIf="!isPlaying && replay && !loading">
-        <div class="pause-pill">
-          <svg width="12" height="14" viewBox="0 0 12 14" fill="none">
-            <path d="M1 1L11 7L1 13V1Z" fill="currentColor"/>
-          </svg>
-          <span>play</span>
+      @if (loading) { <div class="loading-overlay"><span>Loading…</span></div> }
+      @if (!isPlaying && replay && !loading) {
+        <div class="pause-overlay">
+          <div class="pause-pill">
+            <svg width="12" height="14" viewBox="0 0 12 14" fill="none">
+              <path d="M1 1L11 7L1 13V1Z" fill="currentColor"/>
+            </svg>
+            <span>play</span>
+          </div>
         </div>
-      </div>
+      }
       <canvas #boardCanvas></canvas>
     </div>
 
     <!-- Controls strip -->
     <div class="controls-strip">
       <div class="game-pills">
-        <button
-          *ngFor="let g of games"
-          class="game-pill"
-          [class.active]="selectedGame === g.id"
-          [disabled]="loading"
-          (click)="selectedGame = g.id; loadGame()"
-        >{{ g.id }}</button>
+        @for (g of games; track g.id) {
+          <button
+            class="game-pill"
+            [class.active]="selectedGame === g.id"
+            [disabled]="loading"
+            (click)="selectedGame = g.id; loadGame()"
+          >{{ g.id }}</button>
+        }
       </div>
 
       <label class="ctrl-speed">
@@ -59,7 +62,7 @@
   </div>
 
   <!-- ══ Run info ═══════════════════════════════════════════════════ -->
-  <div class="run-info" [class.run-info-visible]="runInfoVisible" *ngIf="replay">
+  @if (replay) { <div class="run-info" [class.run-info-visible]="runInfoVisible">
     <div class="run-info-item">
       <div class="run-info-big">{{ replay.metadata.total_pieces }}</div>
       <div class="run-info-desc">pieces placed</div>
@@ -69,7 +72,7 @@
       <div class="run-info-big accent">{{ replay.metadata.total_lines }}</div>
       <div class="run-info-desc">lines cleared</div>
     </div>
-  </div>
+  </div> }
 
 
   <!-- ══ How it works ═══════════════════════════════════════════════ -->

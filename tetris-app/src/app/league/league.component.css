@@ -1,0 +1,58 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:host {
+  --bg:        #1a1a1a;
+  --bg-card:   #212121;
+  --border:    rgba(255,255,255,0.08);
+  --text-pri:  #e8e8e8;
+  --text-sec:  #888;
+  --nav-height: 57px;
+
+  display: block;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text-pri);
+}
+
+/* ── Nav ── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 32px;
+  border-bottom: 0.5px solid var(--border);
+  background: var(--bg);
+}
+
+.nav-logo {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-pri);
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: 28px;
+  font-size: 13px;
+  color: var(--text-sec);
+  list-style: none;
+}
+
+.nav-links a { color: inherit; text-decoration: none; transition: color 0.15s; }
+.nav-links a:hover { color: var(--text-pri); }
+
+/* ── Main ── */
+main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: var(--text-sec);
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+}

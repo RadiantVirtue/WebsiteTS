@@ -44,9 +44,9 @@
 <!-- Projects slide over hero -->
 <div class="projects-section" id="projects">
   <h2>PROJECTS</h2>
-  <div class="projects">
+  <div class="projects" #projectsGrid>
 
-    <div class="card">
+    <div class="card" routerLink="/league">
       <div class="card-type blue">LIVE TOOL</div>
       <div class="card-title">League team analyzer</div>
       <div class="card-desc">CC scoring, damage profiles, itemization</div>
@@ -68,7 +68,7 @@
       </div>
     </div>
 
-    <div class="card" onclick="location.href='/rl-workout-bot/'">
+    <a class="card" href="/rl-workout-bot/">
       <div class="card-type green">CASE STUDY</div>
       <div class="card-title">PPO Workout Agent</div>
       <div class="card-desc">20% efficiency gain, 3-month self-experiment</div>
@@ -77,7 +77,7 @@
         <span class="tag">PPO</span>
         <span class="tag">RL</span>
       </div>
-    </div>
+    </a>
 
   </div>
 </div>
