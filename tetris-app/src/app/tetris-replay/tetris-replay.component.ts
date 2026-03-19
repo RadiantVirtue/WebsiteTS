@@ -321,7 +321,6 @@ export class TetrisReplayComponent implements AfterViewInit, OnDestroy {
       const ease = 1 - Math.pow(1 - t, 2); // ease-out quad
 
       this.renderer.clearBoard();
-      this.renderer.drawGrid();
 
       // Non-cleared rows drift down into their final positions
       for (let r = 0; r < this.ROWS; r++) {

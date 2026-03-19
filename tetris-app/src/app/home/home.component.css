@@ -226,7 +226,9 @@ nav {
 }
 
 .cards-visible .card {
-  animation: fadeUp 0.5s ease forwards;
+  animation: fadeUp 0.5s ease backwards;
+  opacity: 1;
+  transform: none;
 }
 
 .cards-visible .card:nth-child(1) { animation-delay: 0s; }

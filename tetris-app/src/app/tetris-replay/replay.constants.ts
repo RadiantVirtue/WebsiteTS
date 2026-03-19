@@ -28,7 +28,5 @@ export const UI = {
 /** Canvas visual constants. */
 export const CANVAS = {
   BG_COLOR:        '#0d0d0d',
-  GRID_COLOR:      '#333333',
-  GRID_LINE_WIDTH: 0.5,
   FALLBACK_COLOR:  '#888', // used when a piece ID has no colour entry
 } as const;

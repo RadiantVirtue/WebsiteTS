@@ -23,18 +23,6 @@ export class TetrisCanvasRenderer {
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   }
 
-  drawGrid(): void {
-    const { ctx, cell, rows, cols } = this;
-    ctx.strokeStyle = CANVAS.GRID_COLOR;
-    ctx.lineWidth   = CANVAS.GRID_LINE_WIDTH;
-    for (let r = 0; r <= rows; r++) {
-      ctx.beginPath(); ctx.moveTo(0, r * cell); ctx.lineTo(ctx.canvas.width, r * cell); ctx.stroke();
-    }
-    for (let c = 0; c <= cols; c++) {
-      ctx.beginPath(); ctx.moveTo(c * cell, 0); ctx.lineTo(c * cell, ctx.canvas.height); ctx.stroke();
-    }
-  }
-
   drawBlock(px: number, py: number, size: number, color: string, fillAlpha: number): void {
     this.ctx.fillStyle = this.withAlpha(color, fillAlpha);
     this.ctx.fillRect(px + 1, py + 1, size - 2, size - 2);
