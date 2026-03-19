@@ -1,6 +1,164 @@
 <nav>
-  <a routerLink="/" class="nav-logo">RK</a>
-  <ul class="nav-links"></ul>
+  <a class="nav-logo" routerLink="/">RK</a>
+  <ul class="nav-links">
+    <li><a routerLink="/">Home</a></li>
+    <li><a routerLink="/tetris">Tetris</a></li>
+  </ul>
 </nav>
 
-<main>Coming soon...</main>
+<main>
+  <div class="frame-page">
+  <div class="frame">
+
+    <!-- ── Header ────────────────────────────────────────────────────────── -->
+    <div class="hdr">
+      <div class="hdr-label">LIVE TOOL</div>
+      <h1>Team Analyzer</h1>
+      <p>Pick your champion and the enemy comp for a tailored item build.</p>
+    </div>
+
+    <div class="body">
+
+      <!-- ── Your champion ─────────────────────────────────────────────── -->
+      <div class="section-label">YOU</div>
+
+      @if (ownChampion) {
+        <div class="pill pill-own" [class.pill-own-new]="ownChampionNew">
+          <img [src]="ownChampion.icon" [alt]="ownChampion.name" class="pill-icon" />
+          <span class="pill-name">{{ ownChampion.name }}</span>
+          <span class="you-tag">YOU</span>
+          <button class="pill-remove" (click)="removeOwn()" aria-label="Remove">✕</button>
+        </div>
+      } @else {
+        <div class="search-wrap own-search-wrap">
+          <input
+            class="search-input"
+            type="text"
+            placeholder="Search champion…"
+            [value]="ownSearch"
+            (input)="onOwnSearch($any($event.target).value)"
+            (keydown.enter)="onOwnEnter()"
+            autocomplete="off"
+          />
+          @if (filteredOwn.length > 0) {
+            <ul class="dropdown">
+              @for (c of filteredOwn; track c.key) {
+                <li class="dropdown-item" (click)="selectOwn(c)">
+                  <img [src]="c.icon" [alt]="c.name" class="drop-icon" />
+                  {{ c.name }}
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+
+      <!-- ── Enemy team ─────────────────────────────────────────────────── -->
+      <div class="section-label" style="margin-top: 28px">ENEMY TEAM</div>
+
+      @if (enemies.length < 5) {
+        <div class="search-wrap">
+          <input
+            class="search-input"
+            type="text"
+            placeholder="Add enemy…"
+            [value]="enemySearch"
+            (input)="onEnemySearch($any($event.target).value)"
+            (keydown.enter)="onEnemyEnter()"
+            autocomplete="off"
+          />
+          @if (filteredEnemy.length > 0) {
+            <ul class="dropdown">
+              @for (c of filteredEnemy; track c.key) {
+                <li class="dropdown-item" (click)="addEnemy(c)">
+                  <img [src]="c.icon" [alt]="c.name" class="drop-icon" />
+                  {{ c.name }}
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+
+      @if (enemies.length > 0) {
+        <div class="pills-list">
+          @for (e of enemies; track e.key) {
+            <div class="pill enemy-pill" [class.pill-laner]="e.key === lanerKey" [class.pill-laner-out]="e.key === lanerOutKey">
+              <img [src]="e.icon" [alt]="e.name" class="pill-icon" />
+              <span class="pill-name">{{ e.name }}</span>
+              <button
+                class="pill-laner-btn"
+                [class.active]="e.key === lanerKey"
+                (click)="setLaner(e)"
+                title="Set as lane opponent"
+              >⚔</button>
+              <button class="pill-remove" (click)="removeEnemy(e)" aria-label="Remove">✕</button>
+            </div>
+          }
+          @for (e of removingChampions; track e.key) {
+            <div class="pill enemy-pill removing">
+              <img [src]="e.icon" [alt]="e.name" class="pill-icon" />
+              <span class="pill-name">{{ e.name }}</span>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- ── Damage bar ──────────────────────────────────────────────────── -->
+      <div class="dmg-area">
+        <div class="dmg-label">TEAM DAMAGE PROFILE</div>
+        <div class="damage-bar">
+          <div class="bar-green" [style.width.%]="barGreenWidth"></div>
+          <div class="bar-ad"    [style.width.%]="barAdWidth"></div>
+          <div class="bar-true"  [style.width.%]="barTrueWidth"></div>
+          <div class="bar-ap"    [style.width.%]="barApWidth"></div>
+        </div>
+        <div class="dmg-legend">
+          @if (enemies.length === 5) {
+            @let dmg = computeDamageProfile();
+            <span class="legend-ad" [style.width.%]="dmg.adPercent">{{ dmg.adPercent >= 14 ? 'Physical ' : '' }}{{ dmg.adPercent | number:'1.0-0' }}%</span>
+            @if (dmg.truePercent >= 1) {
+              <span class="legend-true" [style.width.%]="dmg.truePercent">{{ dmg.truePercent >= 14 ? 'True ' : '' }}{{ dmg.truePercent | number:'1.0-0' }}%</span>
+            }
+            <span class="legend-ap" [style.width.%]="dmg.apPercent">{{ dmg.apPercent >= 14 ? 'Magic ' : '' }}{{ dmg.apPercent | number:'1.0-0' }}%</span>
+          } @else if (enemies.length > 0) {
+            <span class="legend-neutral">{{ enemies.length }}/5 selected</span>
+          } @else {
+            <span class="legend-neutral">No enemies added</span>
+          }
+        </div>
+      </div>
+
+    </div><!-- /body -->
+
+  </div><!-- /frame -->
+  </div><!-- /frame-page -->
+
+  <!-- ── Build section ────────────────────────────────────────────────────── -->
+  <section class="build-section" #buildSection>
+
+      <!-- damage bar connector -->
+      <div class="build-dmg-connector">
+        <div class="damage-bar">
+          <div class="bar-green" [style.width.%]="barGreenWidth"></div>
+          <div class="bar-ad"    [style.width.%]="barAdWidth"></div>
+          <div class="bar-true"  [style.width.%]="barTrueWidth"></div>
+          <div class="bar-ap"    [style.width.%]="barApWidth"></div>
+        </div>
+      </div>
+
+      @if (buildError) {
+        <p class="build-error">{{ buildError }}</p>
+      }
+
+      <div #buildContainer class="build-result"></div>
+
+      @if (!ownChampion || enemies.length < 5 || !lanerKey) {
+        @if (!buildError) {
+          <p class="build-hint">Select your champion and 5 enemies to generate a build.</p>
+        }
+      }
+
+  </section><!-- /build-section -->
+
+</main>

@@ -37,6 +37,12 @@
           "configurations": {
             "production": {
               "baseHref": "/",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ],
               "extractLicenses": false,
               "prerender": false,
               "budgets": [
