@@ -39,6 +39,13 @@ nav {
   letter-spacing: 0.5px;
   color: var(--text-pri);
   text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.nav-logo img {
+  height: 36px;
+  width: auto;
 }
 
 .nav-links {
