@@ -1,3 +1,3 @@
 export const environment = {
-apiBaseUrl: 'https://leagueapi.onrender.com'
+apiBaseUrl: 'https://website-backend-dojt.onrender.com'
 };
